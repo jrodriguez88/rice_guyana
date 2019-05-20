@@ -84,20 +84,44 @@ data %>% group_by(location) %>%
 #    theme_bw() +
 #    theme(legend.position="bottom")
 
-data$pdate <- factor(data$pdate, levels = c("March15","April15", "April30","May15","May30", "June15", "June30"))
+data$pdate <- factor(data$pdate, levels = c("March15","April15", "April30", "May15","May30", "June15", "June30"))
 
-data %>% select(Year1, Day1, Month1, pdate, location, crop_sys, Yield, BioMass, Cycle) %>%
+data %>% select(Year1, Day1, Month1, pdate, location, crop_sys, Yield, BioMass, Cycle, Rain) %>%
     mutate(date = make_date(Year1, Month1, Day1), 
            jdate = yday(date)) %>%
-    gather("Sim_variable", "Value", -c(1:6, 10, 11)) %>%
+    gather("Sim_variable", "Value", -c(1:6, 11, 12)) %>%
     ggplot(aes(pdate,  Value, fill=location)) + 
 #    scale_x_date(labels = function(x) format(x, "%B-%d")) +
     geom_boxplot(outlier.shape=NA) +
 #    facet_wrap(riego ~. ) +
     theme_bw() +
     theme(legend.position="bottom", legend.title = element_blank()) +
-    labs(title = "Periodo de Referencia 1998-2018") +
+    labs(title = "Guyana Rice Production") +
     facet_grid(Sim_variable~crop_sys, scales = "free") 
 #    scale_fill_viridis_d()
 
 
+mean_yield <- data %>% select(Year1, Day1, Month1, pdate, location, crop_sys, Yield, BioMass, Cycle) %>%
+    mutate(date = make_date(Year1, Month1, Day1), 
+           jdate = yday(date)) %>%
+    gather("Sim_variable", "Value", -c(1:6, 10, 11)) %>% 
+    filter(Sim_variable=="Yield") %>% group_by(crop_sys, location, Year1) %>% 
+    summarise(Value=mean(Value)) %>%
+    ungroup()
+
+data %>% select(Year1, Day1, Month1, pdate, location, crop_sys, Yield, BioMass, Cycle) %>%
+    mutate(date = make_date(Year1, Month1, Day1), 
+           jdate = yday(date)) %>%
+    gather("Sim_variable", "Value", -c(1:6, 10, 11)) %>% 
+    filter(Sim_variable=="Yield") %>%
+    ggplot(aes(Year1,  Value)) + 
+    #    scale_x_date(labels = function(x) format(x, "%B-%d")) +
+    geom_point() + geom_line(data=mean_yield, aes(x=Year1, y=Value), color = "red") + 
+    
+    #    facet_wrap(riego ~. ) +
+    theme_bw() +
+    theme(legend.position="bottom", legend.title = element_blank()) +
+    labs(title = "Guyana Rice Production", 
+         y="Yield (Tonnes/ha)",
+         x = "Year") +
+    facet_grid(location~crop_sys, scales = "free_y") 
