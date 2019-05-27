@@ -8,6 +8,45 @@ library(tidyverse)
 library(data.table)
 library(lubridate)
 
+# function to calculate HUH _ tbase,    topt,and thigh depends of crop
+HUH_cal <- function(tmax, tmin, tbase = 8, topt = 30, thigh = 42.5) {
+    
+    tav <- (tmin + tmax)/2
+    
+    h <- 1:24
+    
+    Td <- tav + (tmax - tmin)*cos(0.2618*(h - 14))/2 
+    
+    huh <- Td %>% enframe(name = NULL, "td") %>%
+        mutate(HUH = case_when(td <= tbase | td >= thigh ~ 0,
+                               td > tbase | td <= topt ~ (td - tbase)/24,
+                               td > topt | td < thigh ~ (topt-(td - topt)*(topt - tbase)/(thigh - topt))/24))
+    
+    sum(huh$HUH)   
+    
+} 
+
+# Read data
+path <- paste0(getwd(), "/data")
+files <- list.files(path, pattern = ".txt")
+
+names <- files %>% str_remove(".txt")
+
+## Function to read import data , weather txt file    
+read_weather_data <- function(path, file) {
+    
+    fread(paste0(path, "/", file), col.names = c("rain", "srad", "tmax", "tmin")) %>% as_tibble() %>%
+        mutate(date = seq.Date(make_date(1998, 1, 1),
+                               make_date(2018, 12, 31), "days")) %>%
+        select(date, everything())
+    
+}
+
+data <- map(files, ~read_weather_data(path = path, file = .x)) %>% set_names(names)
+
+all_data <- data %>% bind_rows(.id = "id") %>% nest(-id) %>%
+    separate(id, c("Loc", "Region"), sep="_") 
+
 
 ### select weather station
 data_wth <- all_data %>% filter(Loc=="Boerasire") %>% unnest(data)
@@ -19,12 +58,13 @@ clim_data <- data_wth %>% mutate(HUH = map2(tmax, tmin, HUH_cal) %>% flatten_dbl
 
 # Path of aquacrop files
 aquacrop_files <- paste0(path, "/aquacrop_files/")
-aquacrop_path <- "C:\\AQUACROP\\DATA\\"
+#aquacrop_path <- "C:\\AQUACROP\\DATA\\"
+
 ###file names 
 clim_file <- list.files(aquacrop_files, pattern = "CLI") %>% str_remove(".CLI")
 co2_file <- list.files(aquacrop_files, ".CO2")
 crop_file <- list.files(aquacrop_files, ".CRO")
-irri_file <- list.files(aquacrop_files, ".IRrR") %>% c(., "rainfed")
+irri_file <- list.files(aquacrop_files, ".IRR") %>% c(., "rainfed")
 man_file <- list.files(aquacrop_files, ".MAN")
 soil_file <- list.files(aquacrop_files, ".SOL")
 ini_file <- list.files(aquacrop_files, ".SW0")
@@ -153,6 +193,8 @@ params <- expand.grid(aquacrop_files,
              "max_crop_duration",
              "sowing_date"))
 
+
+## Function to compute all runs for params table
 runs_cal <- function(params, clim_data) {
     
 params %>% mutate(runs = cal_cycles_project(clim_data, 
@@ -173,11 +215,32 @@ sim_cycles <- split(params, 1:nrow(params)) %>%
     map(., ~runs_cal(., clim_data)) %>%
     bind_rows()
 
+list_cycles <- split(sim_cycles, list(sim_cycles$crop_file, 
+                       sim_cycles$irri_file, 
+                       sim_cycles$soil_file))
 
-
-
-sink(file = "test22.PRM", append = T)
-cat("description here")
+plugin_path <- "D:/03_DEVELOPER/rice_guyana/pluggin/"
+write_projects <- function(sim_cycles, path){
+    
+    dummy <- list.files(path, ".PRM", full.names = T)
+      ### Default parameters,  
+    def_param <- read_lines(dummy, skip = 6, n_max = 21) 
+   
+    description <-  paste(unique(sim_cycles$crop_file), 
+                       unique(sim_cycles$clim_file),
+                       unique(sim_cycles$soil_file),
+                       unique(sim_cycles$irri_file), sep = " - ")
+    
+    prm_name <- paste0(unique(sim_cycles$clim_file), "_", 
+                       unique(sim_cycles$soil_file), "_", 
+                       unique(sim_cycles$irri_file)) %>% 
+        str_replace_all(pattern = "[.]+", replacement = "") %>%
+        paste0(., ".PRM")
+    
+    dir.create(paste0(path, "/", "LIST"))
+    
+sink(file = paste(path, "LIST", prm_name, sep = "/"), append = F)
+cat(paste("I am groot"))
 cat('\n')
 cat("6.0       : AquaCrop Version (March 2017)")
 cat('\n')
@@ -185,21 +248,11 @@ writeLines(sim_cycles$runs[[1]][1:4])
 writeLines(def_param)
 writeLines(sim_cycles$runs[[1]][-c(1:4)])
 walk(.x=sim_cycles$runs[-1], ~writeLines(.x))
-sink()
-
-
-write_projects <- function(pfile = "project_sample.PRM", info = "by JRE", list_sett)
+sink()    
     
+}
     
-### Default parameters,  
-def_param <- read_lines("data/project_sample.PRM", skip = 6, n_max = 21) 
-#writeLines(def_param)
-
-
-
-
-
-path_data()
+map(.x = list_cycles, ~write_projects(.x, plugin_path))
 
 
 
