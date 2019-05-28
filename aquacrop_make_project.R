@@ -68,12 +68,30 @@ irri_file <- list.files(aquacrop_files, ".IRR") %>% c(., "rainfed")
 man_file <- list.files(aquacrop_files, ".MAN")
 soil_file <- list.files(aquacrop_files, ".SOL")
 ini_file <- list.files(aquacrop_files, ".SW0")
+proj_file <- list.files(aquacrop_files, ".PRM")
+    
+
+### Default parameters,  
+def_params <- read_lines(paste0(aquacrop_files, proj_file), skip = 6, n_max = 21) 
 
 ### Set sowing dates 
 max_crop_duration <- 150
-sowing_date <- seq.Date(make_date(year = 1998, month = 5, day = 15), 
-                 make_date(year = 2000, month = 5, day = 15), by="weeks")
+star_sow <- c(5,15)   #c(month, day)
+end_sow <- c(5,15)   #c(month, day)
+sow_date_cal <- function(start_sow, end_sow, clim_data, by = "weeks") {
+    
+    start_sowing_date <- make_date(month = star_sow[1], day = star_sow[2]) %>% yday
+    end_sowing_date <- make_date(month = end_sow[1], day = end_sow[2]) %>% yday
+    
+    seq.Date(range(clim_data$date)[1], 
+             range(clim_data$date)[2], by=by) %>%
+        enframe(name = NULL, value = "sow_dates") %>%
+        filter(yday(sow_dates) >= start_sowing_date, 
+               yday(sow_dates) <= end_sowing_date) %>% pull(sow_dates)
+}
 
+    
+sowing_date <- sow_date_cal(star_sow, end_sow, clim_data, by = "days")
 
 ## Function to calculate and create crop growing cycles
 cal_cycles_project <- function(clim_data,
@@ -219,17 +237,13 @@ list_cycles <- split(sim_cycles, list(sim_cycles$crop_file,
                        sim_cycles$irri_file, 
                        sim_cycles$soil_file))
 
-plugin_path <- "D:/03_DEVELOPER/rice_guyana/pluggin/"
-write_projects <- function(sim_cycles, path){
+plugin_path <- "D:/03_DEVELOPER/rice_guyana/plugin/"
+write_projects <- function(sim_cycles, path, def_params){
     
-    dummy <- list.files(path, ".PRM", full.names = T)
-      ### Default parameters,  
-    def_param <- read_lines(dummy, skip = 6, n_max = 21) 
-   
-    description <-  paste(unique(sim_cycles$crop_file), 
-                       unique(sim_cycles$clim_file),
-                       unique(sim_cycles$soil_file),
-                       unique(sim_cycles$irri_file), sep = " - ")
+#    description <-  paste(unique(sim_cycles$crop_file), 
+#                       unique(sim_cycles$clim_file),
+#                       unique(sim_cycles$soil_file),
+#                       unique(sim_cycles$irri_file), sep = " - ")
     
     prm_name <- paste0(unique(sim_cycles$clim_file), "_", 
                        unique(sim_cycles$soil_file), "_", 
@@ -237,7 +251,7 @@ write_projects <- function(sim_cycles, path){
         str_replace_all(pattern = "[.]+", replacement = "") %>%
         paste0(., ".PRM")
     
-    dir.create(paste0(path, "/", "LIST"))
+    suppressWarnings(dir.create(paste0(path, "/", "LIST")))
     
 sink(file = paste(path, "LIST", prm_name, sep = "/"), append = F)
 cat(paste("I am groot"))
