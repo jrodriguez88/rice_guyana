@@ -66,8 +66,14 @@ data <- pmap(list(files, path), read_aquacrop_season) %>%
     separate(File, name_var, sep = "_")
 
 ### Histogram summary all data
-data %>% select(Yield, BioMass, Cycle, Rain, clim_scenario) %>% gather("var", "value", -clim_scenario) %>% ggplot(aes(value)) +
+data %>% select(Yield, BioMass, Cycle, Irri, clim_scenario, crop_sys) %>% gather("var", "value", -clim_scenario) %>% ggplot(aes(value)) +
     geom_histogram(bins = 10, color="grey") + facet_wrap(var ~., scales = "free") + 
+    theme_classic()
+
+data %>% select(Yield, BioMass, Cycle, Irri, clim_scenario, crop_sys) %>%
+    gather("var", "value", -c(clim_scenario, crop_sys)) %>% 
+    ggplot(aes(crop_sys, value)) +
+    geom_boxplot(aes(fill=clim_scenario)) + facet_wrap(var ~., scales = "free") + 
     theme_classic()
 
 
@@ -90,7 +96,7 @@ data %>% mutate(crop_sys =  case_when(crop_sys == "Rainfall" ~ "Rainfed",
 
 ##### Plot to compare multiple climate scenarios
 
-title_name <- "Guyana Rice crop simulation"
+title_name <- "Guyana - Aquacrop rice crop simulation"
 data %>% 
     mutate(crop_sys =  case_when(crop_sys == "Rainfall" ~ "Rainfed",
                                       TRUE ~ crop_sys),
@@ -124,8 +130,8 @@ data %>%
 
 
 
-data %>% group_by(clim_scenario) %>%
-    skim()
+#data %>% group_by(clim_scenario) %>%
+#    skim()
 
 
 ### plots
@@ -139,11 +145,24 @@ data %>% group_by(clim_scenario) %>%
 
 data$pdate <- factor(data$pdate, levels = c("March15","April15", "April30", "May15","May30", "June15", "June30"))
 
-data %>% select(Year1, Day1, Month1, pdate, location, crop_sys, Yield, BioMass, Cycle, Rain) %>%
+
+
+data %>% 
+    mutate(crop_sys =  case_when(crop_sys == "Rainfall" ~ "Rainfed",
+                                 TRUE ~ crop_sys),
+           location = case_when(str_detect(clim_scenario, "RCP45") ~ str_replace(clim_scenario, "RCP45", ""),
+                                str_detect(clim_scenario, "RCP85") ~ str_replace(clim_scenario, "RCP85", ""),
+                                TRUE ~ clim_scenario),
+           clim_scenario = case_when(str_detect(clim_scenario, "RCP45") ~ "RCP45",
+                                     str_detect(clim_scenario, "RCP85") ~ "RCP85",
+                                     TRUE ~ "Reference 1998-2018"),
+           region = case_when(location == "Karasabia" | location == "Lethem" ~ "Region 9",
+                              TRUE ~ "Region 3")) %>%
+    select(Year1, Day1, Month1, pdate, location, crop_sys, Yield, BioMass, Cycle, Rain) %>%
     mutate(date = make_date(Year1, Month1, Day1), 
            jdate = yday(date)) %>%
     gather("Sim_variable", "Value", -c(1:6, 11, 12)) %>%
-    ggplot(aes(pdate,  Value, fill=location)) + 
+    ggplot(aes(pdate,  Value, fill=clim_scenario)) + 
 #    scale_x_date(labels = function(x) format(x, "%B-%d")) +
     geom_boxplot(outlier.shape=NA) +
 #    facet_wrap(riego ~. ) +
@@ -178,3 +197,30 @@ data %>% select(Year1, Day1, Month1, pdate, location, crop_sys, Yield, BioMass, 
          y="Yield (Tonnes/ha)",
          x = "Year") +
     facet_grid(location~crop_sys, scales = "free_y") 
+
+
+
+
+
+
+###### OOOOTher Plot
+
+data %>% 
+    mutate(crop_sys =  case_when(crop_sys == "Rainfall" ~ "Rainfed",
+                                 TRUE ~ crop_sys),
+           location = case_when(str_detect(clim_scenario, "RCP45") ~ str_replace(clim_scenario, "RCP45", ""),
+                                str_detect(clim_scenario, "RCP85") ~ str_replace(clim_scenario, "RCP85", ""),
+                                TRUE ~ clim_scenario),
+           clim_scenario = case_when(str_detect(clim_scenario, "RCP45") ~ "RCP45",
+                                     str_detect(clim_scenario, "RCP85") ~ "RCP85",
+                                     TRUE ~ "Reference 1998-2018"),
+           region = case_when(location == "Karasabia" | location == "Lethem" ~ "Region 9",
+                              TRUE ~ "Region 3")) %>%
+    #    filter(str_detect(clim_scenario, pattern = "Borasire")) %>%
+    select(Yield, Tr, Rain, Cycle, clim_scenario, crop_sys, location, region, Year1) %>% 
+    mutate(clim_scenario = factor(clim_scenario, levels = c("Reference 1998-2018", "RCP45", "RCP85"))) %>%
+    gather("var", "value", -c(clim_scenario, crop_sys, location, region, Year1)) %>% 
+    ggplot(aes(crop_sys, value)) +
+    geom_boxplot(aes(fill=clim_scenario)) + 
+    facet_wrap(var ~., scales = "free") + 
+    theme_classic()

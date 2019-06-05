@@ -111,3 +111,36 @@ climate_data %>% filter(clim_scenario == "Reference") %>%
     labs(x = "Date", 
          y= "Srad (MJ/m² d)", 
          title = "Guyana Climate Data")
+
+
+
+#### ETo plot
+
+ETo_files <- list.files(path = path_future, pattern = "ETo", full.names = T)
+
+ETo_reference <- read_lines(ETo_files[2], skip = 8) %>% 
+    str_trim() %>% as.numeric() %>%
+    enframe(name = NULL, value = "ETo_reference") %>%
+    mutate(date = seq.Date(make_date(1998, 1, 1), make_date(2018, 12, 31), by = "days"))
+
+ETo_future <- read_lines(ETo_files[1], skip = 8) %>% 
+    str_trim() %>% as.numeric() %>%
+    enframe(name = NULL, value = "ETo_future") %>%
+    mutate(date = seq.Date(make_date(2040, 1, 1), make_date(2070, 12, 31), by = "days"))
+
+
+full_join(ETo_reference, ETo_future) %>%
+    gather("ETo_period", "ETo", -date) %>% filter(ETo>=0) %>%
+    ggplot(aes(date, ETo)) +
+    geom_line() +
+    facet_grid(. ~ ETo_period, scales = "free") +
+    theme_bw()
+
+
+full_join(ETo_reference, ETo_future) %>%
+    gather("ETo_period", "ETo", -date) %>% filter(ETo>=0) %>%
+    ggplot(aes(date, ETo)) +
+    geom_boxplot() +
+    facet_grid(. ~ ETo_period, scales = "free") +
+    theme_bw()
+
