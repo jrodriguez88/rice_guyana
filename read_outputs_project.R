@@ -66,7 +66,8 @@ data <- pmap(list(files, path), read_aquacrop_season) %>%
     separate(File, name_var, sep = "_")
 
 ### Histogram summary all data
-data %>% select(Yield, BioMass, Cycle, Irri, clim_scenario, crop_sys) %>% gather("var", "value", -clim_scenario) %>% ggplot(aes(value)) +
+data %>% select(Yield, BioMass, Cycle, Irri, clim_scenario, crop_sys) %>% 
+    gather("var", "value", -clim_scenario) %>% ggplot(aes(value)) +
     geom_histogram(bins = 10, color="grey") + facet_wrap(var ~., scales = "free") + 
     theme_classic()
 
@@ -217,10 +218,48 @@ data %>%
            region = case_when(location == "Karasabia" | location == "Lethem" ~ "Region 9",
                               TRUE ~ "Region 3")) %>%
     #    filter(str_detect(clim_scenario, pattern = "Borasire")) %>%
-    select(Yield, Tr, Rain, Cycle, clim_scenario, crop_sys, location, region, Year1) %>% 
+    select(Yield, Tr, Cycle, clim_scenario, crop_sys, location, region, Year1, Irri) %>% 
     mutate(clim_scenario = factor(clim_scenario, levels = c("Reference 1998-2018", "RCP45", "RCP85"))) %>%
     gather("var", "value", -c(clim_scenario, crop_sys, location, region, Year1)) %>% 
     ggplot(aes(crop_sys, value)) +
     geom_boxplot(aes(fill=clim_scenario)) + 
-    facet_wrap(var ~., scales = "free") + 
+    facet_wrap(location+var ~., scales = "free") + 
     theme_classic()
+
+
+
+
+#### Net Irrigation plots
+
+title_name <- "Guyana - Aquacrop rice crop simulation"
+data %>% 
+    mutate(crop_sys =  case_when(crop_sys == "Rainfall" ~ "Rainfed",
+                                 TRUE ~ crop_sys),
+           location = case_when(str_detect(clim_scenario, "RCP45") ~ str_replace(clim_scenario, "RCP45", ""),
+                                str_detect(clim_scenario, "RCP85") ~ str_replace(clim_scenario, "RCP85", ""),
+                                TRUE ~ clim_scenario),
+           clim_scenario = case_when(str_detect(clim_scenario, "RCP45") ~ "RCP45",
+                                     str_detect(clim_scenario, "RCP85") ~ "RCP85",
+                                     TRUE ~ "Reference 1998-2018"),
+           region = case_when(location == "Karasabia" | location == "Lethem" ~ "Region 9",
+                              TRUE ~ "Region 3")) %>%
+    #    filter(str_detect(clim_scenario, pattern = "Borasire")) %>%
+    select(pdate, Yield, clim_scenario, crop_sys, location, region, Irri) %>% filter(crop_sys=="NetIrrigation") %>%
+    mutate(clim_scenario = factor(clim_scenario, levels = c("Reference 1998-2018", "RCP45", "RCP85"))) %>%
+    #    gather("var", "value", -c(clim_scenario, crop_sys)) %>% 
+    ggplot(aes(clim_scenario, Irri)) +
+    geom_boxplot(aes(x = clim_scenario, fill = clim_scenario), alpha=0.7) + 
+    facet_grid(pdate ~ region+location, scales = "free") + 
+    theme_bw() +
+    theme(
+        axis.text.x = element_blank(),
+        legend.position="bottom",
+        legend.title = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.background=element_rect(fill="white", size=1.5, linetype="solid"),
+        strip.text = element_text(face = "bold")) +
+    scale_fill_manual(values=c("darkgreen", "yellow", "red"))+
+    labs(x = "Climate Scenario", 
+         y= "Net_irrigation", 
+         title = title_name)
+
