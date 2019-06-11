@@ -94,6 +94,33 @@ climate_data %>%
          y= "Rain (mm)", 
          title = "Guyana Climate Data")
 
+climate_data %>% mutate(rain_days = if_else(rain>5, 1, 0)) %>% 
+    group_by(clim_scenario, location, year = year(date), month = month(date)) %>%
+    summarise(n = n(), 
+              rain_m = sum(rain), 
+              rain_dm = sum(rain_days), 
+              tmin_m = mean(tmin), 
+              tmax_m = mean(tmax), 
+              srad_m = mean(srad)) %>% #write.csv("climate_data_monthly.csv")
+    ungroup() %>% group_by(clim_scenario, location, year) %>% 
+    summarise(rain_y = sum(rain_m), 
+              rain_dy = sum(rain_dm),
+              tmin_y = mean(tmin_m),
+              tmax_y = mean(tmax_m)) %>%
+    ggplot(aes(year, tmax_y)) + geom_point() + geom_line()+
+    facet_grid(location ~ clim_scenario, scales = "free_x") +
+    theme_bw() +
+    theme(
+        axis.text.x = element_text(angle = 45),
+        #        legend.position="bottom",
+        #        legend.title = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.background=element_rect(fill="white", size=1.5, linetype="solid"),
+        strip.text = element_text(face = "bold")) +  
+    labs(x = "Date", 
+         y= "Rain (mm)", 
+         title = "Guyana Climate Data")
+
 
 
 ## Plot Solar Radiation - We have some probles here/ Solar.
