@@ -8,7 +8,7 @@ library(data.table)
 library(lubridate)
 library(skimr)
 
-path <- "D:/03_DEVELOPER/rice_guyana/climate_scenarios/"
+path <- "D:/03_DEVELOPER/rice_guyana/climate_future2/"
 
 setwd(path)
 
@@ -65,7 +65,9 @@ data <- pmap(list(files, path), read_aquacrop_season) %>%
     mutate(File = str_replace(File, ".PRM", "")) %>%
     separate(File, name_var, sep = "_")
 
-### Histogram summary all data
+data$pdate <- factor(data$pdate, levels = c("March15","April15", "April30", "May15","May30", "June15", "June30"))
+
+### Histogram summary all data (one location or scenario)
 data %>% select(Yield, BioMass, Cycle, Irri, clim_scenario, crop_sys) %>% 
     gather("var", "value", -clim_scenario) %>% ggplot(aes(value)) +
     geom_histogram(bins = 10, color="grey") + facet_wrap(var ~., scales = "free") + 
@@ -86,7 +88,8 @@ data %>% mutate(crop_sys =  case_when(crop_sys == "Rainfall" ~ "Rainfed",
                                      TRUE ~ clim_scenario),
                 clim_scenario = case_when(str_detect(clim_scenario, "RCP45") ~ "RCP45",
                                           str_detect(clim_scenario, "RCP85") ~ "RCP85",
-                                          TRUE ~ "Reference 1998-2018")) %>%
+                                          TRUE ~ "Reference 1998-2018"),
+                location = str_replace(location, "New", "")) %>% 
 #    filter(str_detect(clim_scenario, pattern = "Borasire")) %>%
     select(Yield, clim_scenario, crop_sys, location) %>%    ##### Change the Yield by parameter
 #    gather("var", "value", -c(clim_scenario, crop_sys)) %>% 
@@ -98,20 +101,22 @@ data %>% mutate(crop_sys =  case_when(crop_sys == "Rainfall" ~ "Rainfed",
 ##### Plot to compare multiple climate scenarios
 
 title_name <- "Guyana - Aquacrop rice crop simulation"
-data %>% 
-    mutate(crop_sys =  case_when(crop_sys == "Rainfall" ~ "Rainfed",
-                                      TRUE ~ crop_sys),
-                location = case_when(str_detect(clim_scenario, "RCP45") ~ str_replace(clim_scenario, "RCP45", ""),
-                                     str_detect(clim_scenario, "RCP85") ~ str_replace(clim_scenario, "RCP85", ""),
-                                     TRUE ~ clim_scenario),
-                clim_scenario = case_when(str_detect(clim_scenario, "RCP45") ~ "RCP45",
-                                          str_detect(clim_scenario, "RCP85") ~ "RCP85",
-                                          TRUE ~ "Reference 1998-2018"),
-                region = case_when(location == "Karasabia" | location == "Lethem" ~ "Region 9",
-                                   TRUE ~ "Region 3")) %>%
+plot_data <- data %>% mutate(crop_sys =  case_when(crop_sys == "Rainfall" ~ "Rainfed",
+                                                   TRUE ~ crop_sys),
+                             location = case_when(str_detect(clim_scenario, "RCP45") ~ str_replace(clim_scenario, "RCP45", ""),
+                                                  str_detect(clim_scenario, "RCP85") ~ str_replace(clim_scenario, "RCP85", ""),
+                                                  TRUE ~ clim_scenario),
+                             clim_scenario = case_when(str_detect(clim_scenario, "RCP45") ~ "RCP45",
+                                                       str_detect(clim_scenario, "RCP85") ~ "RCP85",
+                                                       TRUE ~ "Reference 1998-2018"),
+                             location = str_replace(location, "New", ""),
+                             region = case_when(location == "Karasabia" | location == "Lethem" ~ "Region 9",
+                                                TRUE ~ "Region 3"))%>% 
+    mutate(clim_scenario = factor(clim_scenario, levels = c("Reference 1998-2018", "RCP45", "RCP85")))
+
+ plot_data %>%
     #    filter(str_detect(clim_scenario, pattern = "Borasire")) %>%
     select(Yield, clim_scenario, crop_sys, location, region) %>% 
-    mutate(clim_scenario = factor(clim_scenario, levels = c("Reference 1998-2018", "RCP45", "RCP85"))) %>%
     #    gather("var", "value", -c(clim_scenario, crop_sys)) %>% 
     ggplot(aes(clim_scenario, Yield)) +
     geom_boxplot(aes(x = clim_scenario, fill = clim_scenario), alpha=0.7) + 
@@ -144,36 +149,36 @@ data %>%
 #    theme_bw() +
 #    theme(legend.position="bottom")
 
-data$pdate <- factor(data$pdate, levels = c("March15","April15", "April30", "May15","May30", "June15", "June30"))
 
 
 
-data %>% 
-    mutate(crop_sys =  case_when(crop_sys == "Rainfall" ~ "Rainfed",
-                                 TRUE ~ crop_sys),
-           location = case_when(str_detect(clim_scenario, "RCP45") ~ str_replace(clim_scenario, "RCP45", ""),
-                                str_detect(clim_scenario, "RCP85") ~ str_replace(clim_scenario, "RCP85", ""),
-                                TRUE ~ clim_scenario),
-           clim_scenario = case_when(str_detect(clim_scenario, "RCP45") ~ "RCP45",
-                                     str_detect(clim_scenario, "RCP85") ~ "RCP85",
-                                     TRUE ~ "Reference 1998-2018"),
-           region = case_when(location == "Karasabia" | location == "Lethem" ~ "Region 9",
-                              TRUE ~ "Region 3")) %>%
-    select(Year1, Day1, Month1, pdate, location, crop_sys, Yield, BioMass, Cycle, Rain) %>%
-    mutate(date = make_date(Year1, Month1, Day1), 
-           jdate = yday(date)) %>%
-    gather("Sim_variable", "Value", -c(1:6, 11, 12)) %>%
-    ggplot(aes(pdate,  Value, fill=clim_scenario)) + 
+names(plot_data)
+plot_data %>%
+    select(Year1, Day1, Month1, pdate, location, crop_sys, Yield, clim_scenario) %>%
+    mutate(date = make_date(Year1, Month1, Day1)) %>%
+#    gather("Sim_variable", "Value", -c(1:6, 11, 12)) %>%
+    ggplot(aes(pdate,  Yield, fill=clim_scenario)) + 
 #    scale_x_date(labels = function(x) format(x, "%B-%d")) +
-    geom_boxplot(outlier.shape=NA) +
+    geom_boxplot(outlier.shape=NA,  alpha=0.7) +
 #    facet_wrap(riego ~. ) +
     theme_bw() +
-    theme(legend.position="bottom", legend.title = element_blank()) +
+    theme(legend.position="bottom",
+          legend.title = element_blank(),
+          panel.grid.minor = element_blank(),
+          strip.background=element_rect(fill="white", size=1.5, linetype="solid"),
+          strip.text = element_text(face = "bold")) +
     labs(title = "Guyana Rice Production") +
-    facet_grid(Sim_variable~crop_sys, scales = "free") 
+    facet_grid(location~crop_sys, scales = "free") +
+    scale_fill_manual(values=c("darkgreen", "yellow", "red"))+
+    labs(x = "Climate Scenario", 
+         y= "Yield (Tn/ha)", 
+         title = title_name)
 #    scale_fill_viridis_d()
 
 
+
+
+#$### Plot for one (1) location
 mean_yield <- data %>% select(Year1, Day1, Month1, pdate, location, crop_sys, Yield, BioMass, Cycle) %>%
     mutate(date = make_date(Year1, Month1, Day1), 
            jdate = yday(date)) %>%
@@ -206,17 +211,7 @@ data %>% select(Year1, Day1, Month1, pdate, location, crop_sys, Yield, BioMass, 
 
 ###### OOOOTher Plot
 
-data %>% 
-    mutate(crop_sys =  case_when(crop_sys == "Rainfall" ~ "Rainfed",
-                                 TRUE ~ crop_sys),
-           location = case_when(str_detect(clim_scenario, "RCP45") ~ str_replace(clim_scenario, "RCP45", ""),
-                                str_detect(clim_scenario, "RCP85") ~ str_replace(clim_scenario, "RCP85", ""),
-                                TRUE ~ clim_scenario),
-           clim_scenario = case_when(str_detect(clim_scenario, "RCP45") ~ "RCP45",
-                                     str_detect(clim_scenario, "RCP85") ~ "RCP85",
-                                     TRUE ~ "Reference 1998-2018"),
-           region = case_when(location == "Karasabia" | location == "Lethem" ~ "Region 9",
-                              TRUE ~ "Region 3")) %>%
+plot_data %>%
     #    filter(str_detect(clim_scenario, pattern = "Borasire")) %>%
     select(Yield, Tr, Cycle, clim_scenario, crop_sys, location, region, Year1, Irri) %>% 
     mutate(clim_scenario = factor(clim_scenario, levels = c("Reference 1998-2018", "RCP45", "RCP85"))) %>%
@@ -232,17 +227,7 @@ data %>%
 #### Net Irrigation plots
 
 title_name <- "Guyana - Aquacrop rice crop simulation"
-data %>% 
-    mutate(crop_sys =  case_when(crop_sys == "Rainfall" ~ "Rainfed",
-                                 TRUE ~ crop_sys),
-           location = case_when(str_detect(clim_scenario, "RCP45") ~ str_replace(clim_scenario, "RCP45", ""),
-                                str_detect(clim_scenario, "RCP85") ~ str_replace(clim_scenario, "RCP85", ""),
-                                TRUE ~ clim_scenario),
-           clim_scenario = case_when(str_detect(clim_scenario, "RCP45") ~ "RCP45",
-                                     str_detect(clim_scenario, "RCP85") ~ "RCP85",
-                                     TRUE ~ "Reference 1998-2018"),
-           region = case_when(location == "Karasabia" | location == "Lethem" ~ "Region 9",
-                              TRUE ~ "Region 3")) %>%
+plot_data %>%
     #    filter(str_detect(clim_scenario, pattern = "Borasire")) %>%
     select(pdate, Yield, clim_scenario, crop_sys, location, region, Irri) %>% filter(crop_sys=="NetIrrigation") %>%
     mutate(clim_scenario = factor(clim_scenario, levels = c("Reference 1998-2018", "RCP45", "RCP85"))) %>%
