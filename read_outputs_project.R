@@ -136,7 +136,11 @@ plot_data <- data %>% mutate(crop_sys =  case_when(crop_sys == "Rainfall" ~ "Rai
 
 
 
-#data %>% group_by(clim_scenario) %>%
+str(plot_data)
+
+plot_data %>% select(location, Year1, Yield) %>% write_csv("test_csv.csv")
+ 
+ #data %>% group_by(clim_scenario) %>%
 #    skim()
 
 
@@ -247,4 +251,111 @@ plot_data %>%
     labs(x = "Climate Scenario", 
          y= "Net_irrigation", 
          title = title_name)
+
+
+
+
+##### Climate variability analysis
+
+library(rsoi)
+
+enso <- download_enso() %>% select(Year, Month, ONI, phase) %>%
+    mutate(phase = case_when(ONI > 0.5 ~ "El Niño",
+                             ONI < -0.5 ~ "La Niña",
+                             TRUE ~ "Neutral"))
+
+
+
+clim_var_data <- plot_data %>% filter(clim_scenario == "Reference 1998-2018") %>%
+    mutate(date = make_date(Year1, Month1, Day1),
+           Month = lubridate::month(date, label=T)) %>%
+    rename(Year = Year1) %>%
+    left_join(enso, by= c("Year", "Month")) %>%
+    mutate(Month_vg = month((date + days(25)), label = T),
+           Month_fl = month((date + days(75)), label = T),
+           Month_rp = month((date + days(95)), label = T)) %>% 
+    rename(ONI_em = ONI, enso_em =  phase) %>%
+    left_join(enso, by= c("Year", "Month_vg" = "Month")) %>%
+    rename(ONI_vg = ONI, enso_vg =  phase) %>%
+    left_join(enso, by= c("Year", "Month_fl" = "Month")) %>%
+    rename(ONI_fl = ONI, enso_fl =  phase) %>%
+    left_join(enso, by= c("Year", "Month_rp" = "Month")) %>%
+    rename(ONI_rp = ONI, enso_rp =  phase)
+
+### ENSO plots
+
+# Satt Summary
+clim_var_data %>%
+    #    filter(soil=="Clay_Loam") %>% #, cultivar!="F2000") %>% 
+    #    ggplot(aes(Month, WRR14)) +
+    ggplot(aes(as.numeric(format(date, "%j")), Yield)) +
+    #    geom_jitter(aes(shape=LOC), alpha=0.3) + 
+    stat_summary(fun.data = mean_cl_boot,
+                 position = position_dodge(width = 0.5),
+                 aes(color= enso_fl), alpha = 0.7) + 
+    facet_grid(crop_sys ~ region+location, scales = "free") +
+    #    scale_x_date(date_labels = "%j") +
+    #    facet_grid(soil ~ cultivar) +
+    theme_classic() + theme(legend.title = element_blank(),
+                            legend.position = "bottom",
+                            panel.grid.major.y = element_line( size=.1, color="grey" )) + 
+    scale_color_manual(values = c("red", "dodgerblue4", "limegreen")) +
+    labs(x = "Day of Year",
+         y = "Tonnes (Tn/ha)")
+
+
+
+
+#Boxplot
+
+clim_var_data %>%
+    ggplot(aes(pdate, Yield)) +
+    #    geom_jitter(aes(shape=LOC), alpha=0.3) + 
+    geom_boxplot(aes(fill= enso_fl), outlier.shape = NA, alpha=0.8) + 
+    #    scale_x_date(date_labels = "%j") +
+    #    facet_grid(soil ~ cultivar) +
+    theme_classic() + theme(legend.title = element_blank(),
+                            legend.position = "bottom",
+                            panel.grid.major.y = element_line( size=.1, color="grey" )) +
+    scale_fill_manual(values = c("red", "dodgerblue4", "limegreen")) +
+    facet_grid(crop_sys ~ region+location, scales = "free_x") +
+    labs(x = "Planting date",
+         y = "Tonnes (Tn/ha)")
+
+
+clim_var_data %>%
+    ggplot(aes(factor(Year), Yield)) +
+    #    geom_jitter(aes(shape=LOC), alpha=0.3) + 
+    geom_boxplot(aes(fill= crop_sys), outlier.shape = NA, alpha=0.8) + 
+    #    scale_x_date(date_labels = "%j") +
+    #    facet_grid(soil ~ cultivar) +
+    theme_classic() + 
+    theme(legend.title = element_blank(),
+          legend.position = "bottom",
+          panel.grid.major.y = element_line( size=.1, color="grey" )) +
+    scale_fill_hue(direction = -1, h.start=90) +
+    facet_grid(region+location ~ ., scales = "free") +
+    labs(x = "Year \n \n Crop Sys",
+         y = "Tonnes (Tn/ha)")
+
+
+
+clim_var_data %>%
+    ggplot(aes(factor(Year), Yield)) +
+    #    geom_jitter(aes(shape=LOC), alpha=0.3) + 
+    geom_boxplot(aes(fill= enso_rp), outlier.shape = NA, alpha=0.8) + 
+    #    scale_x_date(date_labels = "%j") +
+    #    facet_grid(soil ~ cultivar) +
+    theme_classic() + 
+    theme(legend.title = element_blank(),
+          legend.position = "bottom",
+          panel.grid.major.y = element_line( size=.1, color="grey" )) +
+    scale_fill_manual(values = c("red", "dodgerblue4", "limegreen")) +
+    facet_grid(region+location ~ ., scales = "free") +
+    labs(x = "Year \n \n Crop Sys",
+         y = "Tonnes (Tn/ha)")
+
+
+
+
 
