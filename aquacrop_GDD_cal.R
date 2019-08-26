@@ -8,6 +8,7 @@
 library(tidyverse)
 library(data.table)
 library(lubridate)
+library(skimr)
 
 # Read data
 path <- paste0(getwd(), "/data")
@@ -33,13 +34,19 @@ all_data <- data %>% bind_rows(.id = "id") %>% nest(-id) %>%
 
 
 ### plot all data
-all_data %>% unnest(data) %>% gather(var, value, -c(Loc, Region, date)) %>%
-    ggplot(aes(x=1, value)) +
-    geom_boxplot(color="gray") +
-    facet_grid(var~ Region+Loc, scales = "free") +
+all_data %>% unnest(data) %>% 
+    gather(var, value, -c(Loc, Region, date)) %>% filter(value < 100) %>%
+    ggplot(aes(value)) +
+    geom_histogram(color="gray", binwidth = 1) +
+    facet_grid(Region+Loc ~var, scales = "free") +
     theme_classic()
     
 
+    
+#    all_data %>% unnest(data) %>% select(rain) %>% ggplot(aes(rain)) +
+#        geom_histogram()
+#    
+#    all_data %>% unnest(data) %>% filter(rain>170)
 
 #tidy_data <- data[[2]]  %>%
 #    gather(var, value, -date)
@@ -52,7 +59,6 @@ all_data %>% unnest(data) %>% gather(var, value, -c(Loc, Region, date)) %>%
 
 
 # function to calculate HUH _ tbase, topt,and thigh depends of crop
-
 HUH_cal <- function(tmax, tmin, tbase = 8, topt = 30, thigh = 42.5) {
     
     tav <- (tmin + tmax)/2
@@ -129,3 +135,7 @@ data_params %>% select(Loc, Region, gdd_param) %>%
 
 #gdd_data %>% select(date, GDD1, GDD2) %>% gather("GDD_method", "GDD", -date) %>%
 #    t.test(GDD ~ GDD_method, data= .)
+
+
+all_data %>% unnest(data) %>% select(-c(Region)) %>% group_by(Loc) %>%
+    skim()

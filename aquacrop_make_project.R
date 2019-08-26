@@ -1,7 +1,8 @@
 #### Aquacrop make Project files
 # By https://github.com/jrodriguez88
 # Author: Rodriguez-Espinoza J.
-# 2019
+# 2019 
+
 
 ## load packages and scripts
 library(tidyverse)
@@ -35,7 +36,8 @@ names <- files %>% str_remove(".txt")
 ## Function to read import data , weather txt file    
 read_weather_data <- function(path, file) {
     
-    fread(paste0(path, "/", file), col.names = c("rain", "srad", "tmax", "tmin")) %>% as_tibble() %>%
+    fread(paste0(path, "/", file), col.names = c("rain", "srad", "tmax", "tmin")) %>% 
+        as_tibble() %>%
         mutate(date = seq.Date(make_date(1998, 1, 1),
                                make_date(2018, 12, 31), "days")) %>%
         select(date, everything())
@@ -259,7 +261,7 @@ cat('\n')
 cat("6.0       : AquaCrop Version (March 2017)")
 cat('\n')
 writeLines(sim_cycles$runs[[1]][1:4])
-writeLines(def_param)
+writeLines(def_params)
 writeLines(sim_cycles$runs[[1]][-c(1:4)])
 walk(.x=sim_cycles$runs[-1], ~writeLines(.x))
 sink()    
