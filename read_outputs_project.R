@@ -255,7 +255,7 @@ plot_data %>%
 
 
 
-##### Climate variability analysis
+##### Climate variability analysisgracias cmpagrac
 
 library(rsoi)
 
@@ -293,7 +293,7 @@ clim_var_data %>%
     stat_summary(fun.data = mean_cl_boot,
                  position = position_dodge(width = 0.5),
                  aes(color= enso_fl), alpha = 0.7) + 
-    facet_grid(crop_sys ~ region+location, scales = "free") +
+    facet_grid(crop_sys ~ Region, scales = "free") +
     #    scale_x_date(date_labels = "%j") +
     #    facet_grid(soil ~ cultivar) +
     theme_classic() + theme(legend.title = element_blank(),
